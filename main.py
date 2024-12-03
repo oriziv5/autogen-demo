@@ -1,15 +1,12 @@
 import asyncio
 import datetime
-import os
 import requests
-from autogen_agentchat.agents import AssistantAgent, UserProxyAgent, CodingAssistantAgent
+from autogen_agentchat.agents import AssistantAgent
 from autogen_agentchat.task import Console, TextMentionTermination, MaxMessageTermination
 from autogen_agentchat.teams import RoundRobinGroupChat
 from autogen_ext.models import AzureOpenAIChatCompletionClient
 from dotenv import load_dotenv, dotenv_values
 from azure.identity import DefaultAzureCredential, get_bearer_token_provider
-from autogen_core.base import CancellationToken
-from autogen_agentchat.messages import TextMessage
 from autogen_agentchat.base import TaskResult
 
 # Load environment variables from .env file
@@ -18,18 +15,16 @@ load_dotenv()
 # Create the token provider
 token_provider = get_bearer_token_provider(DefaultAzureCredential(), "https://cognitiveservices.azure.com/.default")
 
+# Load the configuration
 config = dotenv_values(".env")
 
-# print all values the config
-# for key in config:
-#     print(key, config[key])
-
+# Create the model client
 model_client=AzureOpenAIChatCompletionClient(
             azure_endpoint=config["AZURE_OPENAI_ENDPOINT"],
             model=config["AZURE_OPENAI_MODEL"],
             api_version=config["AZURE_OPENAI_API_VERSION"],
-            # api_key=config["AZURE_OPENAI_API_KEY"],
             azure_ad_token_provider=token_provider,
+            # we can set the temperature to 0 to get deterministic results
             temperature=0
 )
 
@@ -54,10 +49,7 @@ async def get_time_local(city: str) -> str:
     return f"The time in {city} is 12:00 PM."
 
 async def main() -> None:
-    # Prompt the user for a query
-
-
-    # Define an agent
+    # Define a weather agent
     weather_agent = AssistantAgent(
         name="weather_agent",
         model_client=model_client,
@@ -66,6 +58,7 @@ async def main() -> None:
         system_message="You are helpful AI assistant, use tools to solve tasks about weather. Respond only with the weather",
     )
 
+    # Define a time agent
     time_agent = AssistantAgent(
         name="time_agent",
         description="Agent that provides time information for a given city.",
@@ -74,14 +67,15 @@ async def main() -> None:
         tools=[get_time_local],
     )
 
-    # Create the critic agent.
+    # Create the supervisor agent.
     supervisor_agent = AssistantAgent(
-        "critic",
+        "supervisor_agent",
         model_client=model_client,
         description="agnent that act as supervisor and provide feedback on the other agents' responses.",
         system_message="Provide short feedback. Check that user query was resolved. Respond with 'APPROVE' to when your feedbacks are addressed and conclude the final answer to the user before that.",
     )
 
+    # Create the report agent.
     report_agent = AssistantAgent(
         name="report_agent",
         model_client=model_client,
@@ -89,12 +83,12 @@ async def main() -> None:
         system_message="You are a helpful assistant that can summearize the conversation and provide the final answer to the user. When you done with generating the answer, reply with TERMINATE.",
     )    
 
-
     # Define termination condition
     text_termination = TextMentionTermination("TERMINATE")
     max_message_termination = MaxMessageTermination(10)
     termination = text_termination | max_message_termination
 
+    # Create a team of agents
     agent_team = RoundRobinGroupChat([
         weather_agent, 
         time_agent,
@@ -113,7 +107,8 @@ async def run_team_stream(agent_team: RoundRobinGroupChat , task) -> None:
     async for message in agent_team.run_stream(task=task):
         if isinstance(message, TaskResult):
             print(message.messages[-1].content)
+        else:
+            print(message.content)
 
 
-# asyncio.run(get_time("America/New_York"))
 asyncio.run(main())

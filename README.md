@@ -1,6 +1,6 @@
 # Autogen demo
 
-In  this code snippet you will learn how to use `autogen` to create multi agent workflow using Azure Open AI
+In  this code snippet you will learn how to use `autogen` to create multi agent workflow using Azure Open AI deployment.
 
 
 ## Environment Prerequisites
