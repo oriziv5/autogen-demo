@@ -8,25 +8,28 @@ from autogen_ext.models import AzureOpenAIChatCompletionClient
 from dotenv import load_dotenv, dotenv_values
 from azure.identity import DefaultAzureCredential, get_bearer_token_provider
 from autogen_agentchat.base import TaskResult
+import sys
 
 # Load environment variables from .env file
 load_dotenv()
-
-# Create the token provider
-token_provider = get_bearer_token_provider(DefaultAzureCredential(), "https://cognitiveservices.azure.com/.default")
-
-# Load the configuration
 config = dotenv_values(".env")
 
-# Create the model client
-model_client=AzureOpenAIChatCompletionClient(
-            azure_endpoint=config["AZURE_OPENAI_ENDPOINT"],
-            model=config["AZURE_OPENAI_MODEL"],
-            api_version=config["AZURE_OPENAI_API_VERSION"],
-            azure_ad_token_provider=token_provider,
-            # we can set the temperature to 0 to get deterministic results
-            temperature=0
-)
+try:
+    # Create the token provider
+    token_provider = get_bearer_token_provider(DefaultAzureCredential(), "https://cognitiveservices.azure.com/.default")
+    # Create the model client
+    model_client=AzureOpenAIChatCompletionClient(
+                azure_endpoint=config["AZURE_OPENAI_ENDPOINT"],
+                model=config["AZURE_OPENAI_MODEL"],
+                api_version=config["AZURE_OPENAI_API_VERSION"],
+                azure_ad_token_provider=token_provider,
+                # we can set the temperature to 0 to get deterministic results
+                temperature=0
+    )
+except:
+    print("Failed to create model client, Please make sure you are logged in to Azure CLI and has the nessesary to authenticate.")
+    sys.exit(1)
+
 
 # Define a tool
 async def get_weather(city: str) -> str:
@@ -102,13 +105,12 @@ async def main() -> None:
     # await Console(stream)
     await run_team_stream(agent_team=agent_team, task=user_query)
 
-
 async def run_team_stream(agent_team: RoundRobinGroupChat , task) -> None:
     async for message in agent_team.run_stream(task=task):
         if isinstance(message, TaskResult):
             print(message.messages[-1].content)
-        else:
-            print(message.content)
+        # else:
+        #     print(message.content)
 
 
 asyncio.run(main())
