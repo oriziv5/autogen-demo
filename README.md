@@ -26,3 +26,6 @@ In  this code snippet you will learn how to use `autogen` to create multi agent 
 8. Click "View Code" and copy the `ENDPOINT` value into above field.
 9. login to azure using `az login` and select the subscription you want
 10. run the program ```python3 main.py```
+
+## Autogen studio
+In order to open the autogen studio type `autogenstudio ui --port 8081`

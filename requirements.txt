@@ -1,3 +1,4 @@
 autogen-agentchat==0.4.0.dev8
 autogen-ext[openai,azure]==0.4.0.dev8
+autogenstudio==0.1.5
 python-dotenv
